@@ -1,25 +1,134 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: kubenas-system
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kubenas-operator
   namespace: kubenas-system
+  labels:
+    app.kubernetes.io/name: kubenas-operator
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/part-of: kubenas
+    app.kubernetes.io/version: "0.1.0"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kubenas-operator
+      app.kubernetes.io/name: kubenas-operator
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
-        app: kubenas-operator
+        app.kubernetes.io/name: kubenas-operator
+        app.kubernetes.io/component: operator
+        app.kubernetes.io/part-of: kubenas
+      annotations:
+        # Prometheus metrics scraping.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: kubenas-operator
+
+      # Prevent preemption of the operator pod.
+      priorityClassName: system-cluster-critical
+
+      # Tolerate control-plane taints for SNO deployments.
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+
+      # Prefer scheduling on the storage node in SNO.
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubenas.io/storage-node
+                    operator: In
+                    values: ["true"]
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+
       containers:
         - name: manager
           image: ghcr.io/kubenas/operator:latest
           imagePullPolicy: IfNotPresent
+          command:
+            - /manager
+          args:
+            - --leader-elect=false
+            - --metrics-bind-address=:8080
+            - --health-probe-bind-address=:8081
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "kubenas-operator"
+
+          ports:
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+      terminationGracePeriodSeconds: 30

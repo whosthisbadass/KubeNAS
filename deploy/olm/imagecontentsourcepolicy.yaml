@@ -1,0 +1,27 @@
+# ─────────────────────────────────────────────────────────────────
+# ImageContentSourcePolicy — disconnected/air-gapped support
+# Maps ghcr.io/kubenas/* images to an internal mirror registry.
+# Update mirror: to your environment's registry address.
+# ─────────────────────────────────────────────────────────────────
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: kubenas-mirror
+spec:
+  repositoryDigestMirrors:
+    # KubeNAS operator image mirror.
+    - source: ghcr.io/kubenas/operator
+      mirrors:
+        - registry.internal.example.com/kubenas/operator
+    # KubeNAS node agent image mirror.
+    - source: ghcr.io/kubenas/node-agent
+      mirrors:
+        - registry.internal.example.com/kubenas/node-agent
+    # KubeNAS catalog mirror.
+    - source: ghcr.io/kubenas/catalog
+      mirrors:
+        - registry.internal.example.com/kubenas/catalog
+    # SnapRAID runner job image.
+    - source: ghcr.io/kubenas/snapraid-runner
+      mirrors:
+        - registry.internal.example.com/kubenas/snapraid-runner

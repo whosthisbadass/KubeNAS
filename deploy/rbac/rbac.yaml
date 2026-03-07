@@ -1,0 +1,241 @@
+# ─────────────────────────────────────────────────────────────────
+# KubeNAS RBAC Configuration
+# Follows least-privilege: operator gets CRD + child resource access,
+# node agent gets ConfigMap read/write only.
+# ─────────────────────────────────────────────────────────────────
+
+# ── Namespace ────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubenas-system
+  labels:
+    app.kubernetes.io/part-of: kubenas
+    pod-security.kubernetes.io/enforce: privileged  # Required for node-agent pods
+    pod-security.kubernetes.io/warn: privileged
+---
+# ── Operator Service Account ─────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubenas-operator
+  namespace: kubenas-system
+  labels:
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/part-of: kubenas
+---
+# ── Node Agent Service Account ───────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubenas-node-agent
+  namespace: kubenas-system
+  labels:
+    app.kubernetes.io/component: node-agent
+    app.kubernetes.io/part-of: kubenas
+---
+# ── Operator ClusterRole ─────────────────────────────────────────
+# Grants access to all KubeNAS CRDs, child Kubernetes resources,
+# and read access to nodes and namespaces.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubenas-operator
+  labels:
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/part-of: kubenas
+rules:
+  # KubeNAS CRDs — full lifecycle management.
+  - apiGroups: ["storage.kubenas.io"]
+    resources:
+      - disks
+      - disks/status
+      - disks/finalizers
+      - arrays
+      - arrays/status
+      - arrays/finalizers
+      - pools
+      - pools/status
+      - pools/finalizers
+      - shares
+      - shares/status
+      - shares/finalizers
+      - parityschedules
+      - parityschedules/status
+      - placementpolicies
+      - rebalancejobs
+      - rebalancejobs/status
+      - diskfailures
+      - diskfailures/status
+      - cachepools
+      - cachepools/status
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # CronJobs for parity scheduling.
+  - apiGroups: ["batch"]
+    resources:
+      - cronjobs
+      - jobs
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # ConfigMaps for agent communication and Samba/NFS configs.
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Pods and Services for share deployment.
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+      - endpoints
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Events for status reporting.
+  - apiGroups: [""]
+    resources:
+      - events
+    verbs: ["create", "patch", "update"]
+
+  # Nodes — read only for node discovery.
+  - apiGroups: [""]
+    resources:
+      - nodes
+    verbs: ["get", "list", "watch"]
+
+  # Namespaces — read only.
+  - apiGroups: [""]
+    resources:
+      - namespaces
+    verbs: ["get", "list", "watch"]
+
+  # SubjectAccessReview for share authz validation.
+  - apiGroups: ["authorization.k8s.io"]
+    resources:
+      - subjectaccessreviews
+    verbs: ["create"]
+
+  # Leader election.
+  - apiGroups: ["coordination.k8s.io"]
+    resources:
+      - leases
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+# ── Operator ClusterRoleBinding ──────────────────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubenas-operator
+  labels:
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/part-of: kubenas
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubenas-operator
+subjects:
+  - kind: ServiceAccount
+    name: kubenas-operator
+    namespace: kubenas-system
+---
+# ── Node Agent ClusterRole ───────────────────────────────────────
+# Node agent reads its assigned op ConfigMaps, writes status ConfigMaps,
+# and reads its own node metadata. Minimal footprint.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubenas-node-agent
+  labels:
+    app.kubernetes.io/component: node-agent
+    app.kubernetes.io/part-of: kubenas
+rules:
+  # ConfigMaps for operator↔agent communication.
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Node read for self-identification.
+  - apiGroups: [""]
+    resources:
+      - nodes
+    verbs: ["get", "list", "watch"]
+  # Events for fault reporting.
+  - apiGroups: [""]
+    resources:
+      - events
+    verbs: ["create", "patch"]
+---
+# ── Node Agent ClusterRoleBinding ────────────────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubenas-node-agent
+  labels:
+    app.kubernetes.io/component: node-agent
+    app.kubernetes.io/part-of: kubenas
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubenas-node-agent
+subjects:
+  - kind: ServiceAccount
+    name: kubenas-node-agent
+    namespace: kubenas-system
+---
+# ── SCC Role Bindings (OpenShift) ────────────────────────────────
+# Grants the node-agent service account the kubenas-node-agent SCC.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubenas-scc-node-agent
+  labels:
+    app.kubernetes.io/part-of: kubenas
+rules:
+  - apiGroups: ["security.openshift.io"]
+    resources: ["securitycontextconstraints"]
+    resourceNames: ["kubenas-node-agent"]
+    verbs: ["use"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubenas-scc-node-agent
+  labels:
+    app.kubernetes.io/part-of: kubenas
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubenas-scc-node-agent
+subjects:
+  - kind: ServiceAccount
+    name: kubenas-node-agent
+    namespace: kubenas-system
+---
+# Grants the operator service account the kubenas-operator SCC.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubenas-scc-operator
+  labels:
+    app.kubernetes.io/part-of: kubenas
+rules:
+  - apiGroups: ["security.openshift.io"]
+    resources: ["securitycontextconstraints"]
+    resourceNames: ["kubenas-operator"]
+    verbs: ["use"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubenas-scc-operator
+  labels:
+    app.kubernetes.io/part-of: kubenas
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubenas-scc-operator
+subjects:
+  - kind: ServiceAccount
+    name: kubenas-operator
+    namespace: kubenas-system

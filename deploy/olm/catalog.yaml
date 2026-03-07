@@ -1,0 +1,47 @@
+# ─────────────────────────────────────────────────────────────────
+# OLM OperatorGroup — scopes operator to kubenas-system namespace
+# ─────────────────────────────────────────────────────────────────
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: kubenas-operatorgroup
+  namespace: kubenas-system
+spec:
+  targetNamespaces:
+    - kubenas-system
+---
+# ─────────────────────────────────────────────────────────────────
+# OLM Subscription — installs KubeNAS operator from catalog
+# ─────────────────────────────────────────────────────────────────
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: kubenas-operator
+  namespace: kubenas-system
+spec:
+  channel: alpha
+  name: kubenas-operator
+  source: kubenas-catalog
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Manual
+---
+# ─────────────────────────────────────────────────────────────────
+# OLM CatalogSource — serves the KubeNAS operator bundle
+# For production: replace with your internal registry mirror in
+# disconnected/air-gapped environments.
+# ─────────────────────────────────────────────────────────────────
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: kubenas-catalog
+  namespace: openshift-marketplace
+  labels:
+    app.kubernetes.io/part-of: kubenas
+spec:
+  sourceType: grpc
+  image: ghcr.io/kubenas/catalog:latest
+  displayName: KubeNAS Operator Catalog
+  publisher: KubeNAS Community
+  updateStrategy:
+    registryPoll:
+      interval: 24h
