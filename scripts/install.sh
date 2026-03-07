@@ -26,10 +26,8 @@ warn()  { echo -e "\033[0;33m[WARN]\033[0m  $*"; }
 error() { echo -e "\033[0;31m[ERROR]\033[0m $*" >&2; exit 1; }
 
 check_deps() {
-  for cmd in oc kubectl; do
-    command -v "$OC" > /dev/null 2>&1 && return 0
-  done
-  error "Neither 'oc' nor 'kubectl' found. Install OpenShift CLI."
+  command -v "$OC" > /dev/null 2>&1 && return 0
+  error "Required CLI not found in PATH: $OC"
 }
 
 label_storage_node() {
@@ -84,7 +82,7 @@ main() {
 
   # Step 6: Deploy node agent DaemonSet.
   info "Deploying KubeNAS Node Agent DaemonSet..."
-  $OC apply -f "${REPO_ROOT}/deploy/examples/node-agent-daemonset.yaml"
+  $OC apply -f "${REPO_ROOT}/deploy/node-agent.yaml"
 
   # Step 7: Wait for operator to be ready.
   info "Waiting for operator deployment to be ready (timeout: 120s)..."

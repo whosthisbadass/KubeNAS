@@ -89,10 +89,10 @@ func main() {
 
 	// Start the main agent loop.
 	agent := &NodeAgent{
-		k8s:          k8sClient,
-		nodeName:     nodeName,
-		hostDevPath:  hostDevPath,
-		log:          log,
+		k8s:         k8sClient,
+		nodeName:    nodeName,
+		hostDevPath: hostDevPath,
+		log:         log,
 	}
 
 	agent.Run(ctx)
@@ -154,11 +154,11 @@ func (a *NodeAgent) runDiscovery(ctx context.Context) {
 	for _, dev := range devices {
 		// Run a quick SMART query for each disk.
 		health := &smart.DiskHealth{
-			DevicePath:  dev.DevicePath,
-			Model:       dev.Model,
-			SerialNumber: dev.Serial,
-			Rotational:  dev.Rotational,
-			HealthScore: 1.0,
+			DevicePath:    dev.DevicePath,
+			Model:         dev.Model,
+			SerialNumber:  dev.Serial,
+			Rotational:    dev.Rotational,
+			HealthScore:   1.0,
 			OverallHealth: "UNKNOWN",
 		}
 
@@ -169,17 +169,17 @@ func (a *NodeAgent) runDiscovery(ctx context.Context) {
 		}
 
 		status := AgentDiskStatus{
-			DevicePath:     dev.DevicePath,
-			CapacityBytes:  dev.SizeBytes,
-			Rotational:     dev.Rotational,
-			Model:          dev.Model,
-			SerialNumber:   dev.Serial,
-			Filesystem:     dev.Filesystem,
-			MountPoint:     dev.MountPoint,
-			Mounted:        dev.MountPoint != "",
-			HealthScore:    health.HealthScore,
-			SmartSummary:   smart.FormatSMARTSummary(health),
-			SmartFailed:    health.SmartFailed,
+			DevicePath:    dev.DevicePath,
+			CapacityBytes: dev.SizeBytes,
+			Rotational:    dev.Rotational,
+			Model:         dev.Model,
+			SerialNumber:  dev.Serial,
+			Filesystem:    dev.Filesystem,
+			MountPoint:    dev.MountPoint,
+			Mounted:       dev.MountPoint != "",
+			HealthScore:   health.HealthScore,
+			SmartSummary:  smart.FormatSMARTSummary(health),
+			SmartFailed:   health.SmartFailed,
 		}
 
 		if dev.MountPoint != "" {

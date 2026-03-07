@@ -33,14 +33,14 @@ type lsblkOutput struct {
 }
 
 type lsblkDevice struct {
-	Name     string        `json:"name"`
-	Size     string        `json:"size"`
-	Rota     bool          `json:"rota"`
-	Model    string        `json:"model,omitempty"`
-	Serial   string        `json:"serial,omitempty"`
-	Fstype   string        `json:"fstype,omitempty"`
-	Mountpoint string      `json:"mountpoint,omitempty"`
-	Children []lsblkDevice `json:"children,omitempty"`
+	Name       string        `json:"name"`
+	Size       string        `json:"size"`
+	Rota       bool          `json:"rota"`
+	Model      string        `json:"model,omitempty"`
+	Serial     string        `json:"serial,omitempty"`
+	Fstype     string        `json:"fstype,omitempty"`
+	Mountpoint string        `json:"mountpoint,omitempty"`
+	Children   []lsblkDevice `json:"children,omitempty"`
 }
 
 // DiscoverDevices runs lsblk and returns all block devices on the host.

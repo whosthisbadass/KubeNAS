@@ -9,11 +9,11 @@ import (
 type ArrayPhase string
 
 const (
-	ArrayPhasePending   ArrayPhase = "Pending"
-	ArrayPhaseReady     ArrayPhase = "Ready"
-	ArrayPhaseDegraded  ArrayPhase = "Degraded"
+	ArrayPhasePending    ArrayPhase = "Pending"
+	ArrayPhaseReady      ArrayPhase = "Ready"
+	ArrayPhaseDegraded   ArrayPhase = "Degraded"
 	ArrayPhaseRebuilding ArrayPhase = "Rebuilding"
-	ArrayPhaseFailed    ArrayPhase = "Failed"
+	ArrayPhaseFailed     ArrayPhase = "Failed"
 )
 
 // SnapraidConfig holds SnapRAID-specific configuration.

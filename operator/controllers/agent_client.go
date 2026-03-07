@@ -46,7 +46,7 @@ type DiskAgentStatus struct {
 	DevicePath     string
 	CapacityBytes  int64
 	AvailableBytes int64
-	HealthScore    float64   // 0.0 (critical) to 1.0 (perfect)
+	HealthScore    float64 // 0.0 (critical) to 1.0 (perfect)
 	SmartSummary   string
 	SerialNumber   string
 	Model          string
@@ -95,7 +95,7 @@ type SnapraidConfig struct {
 
 // SnapraidParityEntry represents a parity definition in snapraid.conf.
 type SnapraidParityEntry struct {
-	Index      int    // 1 = parity, 2 = 2-parity, etc.
+	Index      int // 1 = parity, 2 = 2-parity, etc.
 	DevicePath string
 	MountPoint string
 }

@@ -13,23 +13,23 @@ import (
 
 // DiskHealth holds SMART-derived health data for a single disk.
 type DiskHealth struct {
-	DevicePath     string
-	Model          string
-	SerialNumber   string
+	DevicePath      string
+	Model           string
+	SerialNumber    string
 	FirmwareVersion string
-	OverallHealth  string // PASSED / FAILED
-	Temperature    int    // Celsius
-	PowerOnHours   int64
-	Rotational     bool
-	SmartFailed    bool
-	IOErrors       int64
+	OverallHealth   string // PASSED / FAILED
+	Temperature     int    // Celsius
+	PowerOnHours    int64
+	Rotational      bool
+	SmartFailed     bool
+	IOErrors        int64
 
 	// Key SMART attributes parsed from the attribute table.
-	ReallocatedSectors   int64
-	PendingSectors       int64
-	UncorrectableErrors  int64
-	SpinRetryCount       int64
-	CommandTimeout       int64
+	ReallocatedSectors  int64
+	PendingSectors      int64
+	UncorrectableErrors int64
+	SpinRetryCount      int64
+	CommandTimeout      int64
 
 	// NVMe-specific fields.
 	NVMeAvailableSparePercent int
@@ -76,11 +76,11 @@ type smartctlOutput struct {
 		} `json:"table"`
 	} `json:"ata_smart_attributes"`
 	NVMeSmartHealthInformationLog struct {
-		AvailableSpare       int   `json:"available_spare"`
-		AvailableSpareThreshold int `json:"available_spare_threshold"`
-		PercentageUsed       int   `json:"percentage_used"`
-		MediaErrors          int64 `json:"media_errors"`
-		NumErrLogEntries     int64 `json:"num_err_log_entries"`
+		AvailableSpare          int   `json:"available_spare"`
+		AvailableSpareThreshold int   `json:"available_spare_threshold"`
+		PercentageUsed          int   `json:"percentage_used"`
+		MediaErrors             int64 `json:"media_errors"`
+		NumErrLogEntries        int64 `json:"num_err_log_entries"`
 	} `json:"nvme_smart_health_information_log"`
 }
 
@@ -119,7 +119,7 @@ func QueryDisk(devicePath string) (*DiskHealth, error) {
 	// Parse ATA SMART attributes.
 	for _, attr := range raw.ATASmartAttributes.Table {
 		switch attr.ID {
-		case 5:   // Reallocated Sectors Count
+		case 5: // Reallocated Sectors Count
 			health.ReallocatedSectors = attr.Raw.Value
 		case 187: // Reported Uncorrectable Errors
 			health.UncorrectableErrors = attr.Raw.Value

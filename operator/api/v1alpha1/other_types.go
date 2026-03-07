@@ -34,10 +34,10 @@ type ParityScheduleSpec struct {
 
 // ParityScheduleStatus reflects the last execution times for parity operations.
 type ParityScheduleStatus struct {
-	LastSyncTime  *metav1.Time `json:"lastSyncTime,omitempty"`
-	LastCheckTime *metav1.Time `json:"lastCheckTime,omitempty"`
-	LastScrubTime *metav1.Time `json:"lastScrubTime,omitempty"`
-	LastSyncResult string      `json:"lastSyncResult,omitempty"`
+	LastSyncTime   *metav1.Time `json:"lastSyncTime,omitempty"`
+	LastCheckTime  *metav1.Time `json:"lastCheckTime,omitempty"`
+	LastScrubTime  *metav1.Time `json:"lastScrubTime,omitempty"`
+	LastSyncResult string       `json:"lastSyncResult,omitempty"`
 }
 
 // +kubebuilder:object:root=true

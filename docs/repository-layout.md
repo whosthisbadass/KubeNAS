@@ -15,7 +15,8 @@ kubenas/
  │    ├── roadmap.md
  │    ├── mvp-plan.md
  │    ├── future-vision.md
- │    └── repository-layout.md
+ │    ├── repository-layout.md
+ │    └── dependency-graph.md
  ├── operator/
  │    ├── api/
  │    │    └── v1alpha1/
@@ -42,16 +43,17 @@ kubenas/
  │    ├── crds/
  │    ├── operator.yaml
  │    ├── node-agent.yaml
- │    ├── rbac.yaml
- │    ├── scc.yaml
+ │    ├── rbac/
+ │    │    └── rbac.yaml
+ │    ├── scc/
+ │    │    └── scc.yaml
  │    ├── machineconfig/
- │    └── examples/
+ │    └── olm/
  ├── charts/
  │    └── kubenas/
  ├── scripts/
  │    ├── install.sh
- │    ├── dev-up.sh
- │    └── lint.sh
+ │    └── validate-manifests.sh
  ├── examples/
  │    ├── disks.yaml
  │    ├── array.yaml
@@ -60,9 +62,6 @@ kubenas/
  │    ├── shares.yaml
  │    └── rebalance-job.yaml
  └── .github/
-      ├── workflows/
-      │    ├── ci.yml
-      │    └── release.yml
       └── ISSUE_TEMPLATE/
            ├── bug_report.md
            └── feature_request.md
@@ -70,11 +69,11 @@ kubenas/
 
 ## Directory Responsibilities
 
-- `docs/`: architecture, operations, CRD reference, roadmap.
+- `docs/`: architecture, operations, CRD reference, roadmap, and dependency mapping.
 - `operator/`: Kubernetes operator APIs/controllers and manager runtime.
 - `node-agent/`: host-level disk and health operations.
 - `storage/`: reusable storage-domain logic for mergerfs, snapraid config generation, and placement scoring.
 - `deploy/`: deploy-time manifests and generated bundles.
-- `charts/`: Helm packaging for easy install.
+- `charts/`: Helm packaging scaffolding.
 - `examples/`: sample CRs for common NAS scenarios.
-- `scripts/`: local development and validation scripts.
+- `scripts/`: install and validation helpers.
