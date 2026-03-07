@@ -12,7 +12,7 @@ It brings Unraid-style storage concepts to a declarative, operator-driven platfo
 - mixed disk-size arrays
 - parity protection with SnapRAID
 - union filesystem pooling with mergerfs
-- SMB/NFS network shares
+- SMB/NFS network shares with Kubernetes user/group RBAC mapping
 - SSD/NVMe cache tiers
 - GitOps-friendly, CRD-driven infrastructure
 
@@ -38,7 +38,7 @@ Traditional NAS systems are often appliance-centric and manually administered. K
 - Mixed-capacity disk support
 - SnapRAID parity validation and sync scheduling
 - mergerfs storage pooling
-- SMB/NFS share publishing
+- SMB/NFS share publishing with native OKD/Kubernetes user/group authorization
 
 ### Kubernetes-Native Automation
 

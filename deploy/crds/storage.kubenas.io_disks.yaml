@@ -1,0 +1,48 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: disks.storage.kubenas.io
+spec:
+  group: storage.kubenas.io
+  names:
+    kind: Disk
+    listKind: DiskList
+    plural: disks
+    singular: disk
+    shortNames:
+      - kd
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            apiVersion: { type: string }
+            kind: { type: string }
+            metadata: { type: object }
+            spec:
+              type: object
+              required: [nodeName, devicePath, filesystem, mountPoint, role]
+              properties:
+                nodeName: { type: string }
+                devicePath: { type: string }
+                filesystem: { type: string }
+                mountPoint: { type: string }
+                role:
+                  type: string
+                  enum: [data, parity, cache]
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: [Pending, Ready, Degraded, Failed]
+                capacityBytes: { type: integer, format: int64 }
+                availableBytes: { type: integer, format: int64 }
+                healthScore: { type: number, format: double }
+                lastSmartCheckTime: { type: string, format: date-time }
+      subresources:
+        status: {}

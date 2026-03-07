@@ -99,6 +99,7 @@ Declares SMB/NFS export for pooled directories.
 - `poolRef`: pool reference
 - `path`: subpath under pool
 - `protocol`: `SMB` or `NFS`
+- `authz`: **native Kubernetes/OKD RBAC mapping** for users and groups
 - protocol-specific config sections
 
 ```yaml
@@ -110,11 +111,21 @@ spec:
   poolRef: main-pool
   path: /media
   protocol: SMB
+  authz:
+    mode: kubernetes-rbac
+    subjects:
+      - kind: Group
+        name: homelab-media-admins
+        permissions: [admin, write, read]
+      - kind: Group
+        name: homelab-media-readers
+        permissions: [read]
+      - kind: User
+        name: alice
+        permissions: [write, read]
   smb:
     browseable: true
     readOnly: false
-    validUsers:
-      - mediauser
 ```
 
 ---

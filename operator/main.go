@@ -1,7 +1,22 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/kubenas/kubenas/operator/controllers"
+)
 
 func main() {
-	fmt.Println("KubeNAS operator scaffold placeholder")
+	reconcilers := []controllers.Reconciler{
+		&controllers.DiskController{},
+		&controllers.ArrayController{},
+		&controllers.PoolController{},
+		&controllers.ShareController{},
+		&controllers.ParityController{},
+	}
+
+	fmt.Println("KubeNAS operator bootstrap initialized with controllers:")
+	for _, r := range reconcilers {
+		fmt.Printf("- %s\n", r.Name())
+	}
 }

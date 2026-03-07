@@ -145,7 +145,7 @@ Parity is implemented with SnapRAID:
 
 `Share` resources describe protocol and path intents:
 
-- SMB: workgroup/user ACL templates, browse flags
-- NFS: export CIDRs, squash policy, RO/RW controls
+- SMB: ACL templates derived from Kubernetes users/groups, browse flags
+- NFS: export CIDRs, squash policy, RO/RW controls, mapped group permissions
 - path-level isolation under `/mnt/pool/<share-path>`
-- controller validates target path and mount health before publish
+- controller validates target path, mount health, and subject permissions before publish

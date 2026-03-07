@@ -6,6 +6,18 @@ spec:
   poolRef: main-pool
   path: /media
   protocol: SMB
+  authz:
+    mode: kubernetes-rbac
+    subjects:
+      - kind: Group
+        name: homelab-media-admins
+        permissions: [admin, write, read]
+      - kind: Group
+        name: homelab-media-readers
+        permissions: [read]
+      - kind: User
+        name: alice
+        permissions: [write, read]
   smb:
     browseable: true
     readOnly: false
