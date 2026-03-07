@@ -1,0 +1,9 @@
+apiVersion: storage.kubenas.io/v1alpha1
+kind: ParitySchedule
+metadata:
+  name: daily-parity
+spec:
+  arrayRef: media-array
+  syncCron: "0 2 * * *"
+  checkCron: "0 3 * * 0"
+  scrubCron: "0 4 1 * *"

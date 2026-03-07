@@ -1,0 +1,9 @@
+apiVersion: storage.kubenas.io/v1alpha1
+kind: RebalanceJob
+metadata:
+  name: rebalance-once
+spec:
+  poolRef: main-pool
+  placementPolicyRef: default-placement
+  maxConcurrentMoves: 1
+  dryRun: true

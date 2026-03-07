@@ -1,0 +1,52 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: arrays.storage.kubenas.io
+spec:
+  group: storage.kubenas.io
+  names:
+    kind: Array
+    listKind: ArrayList
+    plural: arrays
+    singular: array
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            apiVersion: { type: string }
+            kind: { type: string }
+            metadata: { type: object }
+            spec:
+              type: object
+              required: [dataDisks, parityDisks]
+              properties:
+                dataDisks:
+                  type: array
+                  minItems: 1
+                  items: { type: string }
+                parityDisks:
+                  type: array
+                  minItems: 1
+                  items: { type: string }
+                snapraidConfig:
+                  type: object
+                  properties:
+                    contentFiles:
+                      type: array
+                      items: { type: string }
+                    excludePatterns:
+                      type: array
+                      items: { type: string }
+            status:
+              type: object
+              properties:
+                phase: { type: string }
+                parityHealthy: { type: boolean }
+                lastSyncTime: { type: string, format: date-time }
+      subresources:
+        status: {}

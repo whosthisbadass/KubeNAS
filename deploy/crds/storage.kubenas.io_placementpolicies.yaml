@@ -1,0 +1,37 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: placementpolicies.storage.kubenas.io
+spec:
+  group: storage.kubenas.io
+  names:
+    kind: PlacementPolicy
+    listKind: PlacementPolicyList
+    plural: placementpolicies
+    singular: placementpolicy
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            apiVersion: { type: string }
+            kind: { type: string }
+            metadata: { type: object }
+            spec:
+              type: object
+              required: [strategy]
+              properties:
+                strategy:
+                  type: string
+                  enum: [balanced, least-used, fill-first, tiered]
+                weights:
+                  type: object
+                  properties:
+                    freeSpace: { type: number, format: double }
+                    load: { type: number, format: double }
+                    health: { type: number, format: double }
+                minFreeSpace: { type: string }
