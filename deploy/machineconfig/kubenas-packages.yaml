@@ -1,0 +1,18 @@
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: 99-kubenas-packages
+  labels:
+    machineconfiguration.openshift.io/role: worker
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+        - path: /usr/local/bin/kubenas-install-packages.sh
+          mode: 0755
+          overwrite: true
+          contents:
+            source: data:text/plain;charset=utf-8;base64,IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLWV1byBwaXBlZmFpbApycG0tb3N0cmVlIGluc3RhbGwgbWVyZ2VyZnMgc25hcHJhaWQgc21hcnRtb250b29scyB4ZnNwcm9ncyBsdm0yCnN5c3RlbWN0bCByZWJvb3QK
+  extensions: []
