@@ -101,8 +101,11 @@ See [Architecture Documentation](./docs/architecture.md) for full workflows.
 ### 1) Install CRDs and Operator
 
 ```bash
-kubectl apply -f deploy/crds/
+kubectl apply -f deploy/crds.yaml
+kubectl apply -f deploy/rbac.yaml
+kubectl apply -f deploy/scc.yaml
 kubectl apply -f deploy/operator.yaml
+kubectl apply -f deploy/node-agent.yaml
 ```
 
 ### 2) Register Disks and Array
@@ -165,4 +168,4 @@ kubectl describe array media-array
 
 ## Project Status
 
-KubeNAS is currently in **specification + prototype planning** stage. Contributions are welcome for architecture, CRDs, controller scaffolding, and testing.
+KubeNAS now includes an **MVP operator and node agent implementation** with CRDs, controllers, OpenShift deployment manifests, and OLM bundle assets. Contributions are welcome for hardening, testing on real hardware, and production readiness.
