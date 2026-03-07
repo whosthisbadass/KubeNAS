@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +20,9 @@ import (
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -90,6 +94,7 @@ func main() {
 	// Start the main agent loop.
 	agent := &NodeAgent{
 		k8s:         k8sClient,
+		dynamic:     dynamic.NewForConfigOrDie(config),
 		nodeName:    nodeName,
 		hostDevPath: hostDevPath,
 		log:         log,
@@ -102,6 +107,7 @@ func main() {
 // NodeAgent is the main agent struct managing all node-level operations.
 type NodeAgent struct {
 	k8s         kubernetes.Interface
+	dynamic     dynamic.Interface
 	nodeName    string
 	hostDevPath string
 	log         interface {
@@ -197,6 +203,33 @@ func (a *NodeAgent) runDiscovery(ctx context.Context) {
 	// Write status to a ConfigMap in kubenas-system.
 	cmName := fmt.Sprintf("kubenas-diskstatus-%s", a.nodeName)
 	a.upsertConfigMap(ctx, cmName, statusData)
+	a.upsertDiskCRs(ctx, devices)
+}
+
+func (a *NodeAgent) upsertDiskCRs(ctx context.Context, devices []disk.Device) {
+	gvr := schema.GroupVersionResource{Group: "storage.kubenas.io", Version: "v1", Resource: "disks"}
+	for _, d := range devices {
+		name := "disk-" + strings.TrimPrefix(strings.ReplaceAll(d.DevicePath, "/", "-"), "-dev-")
+		obj := &unstructured.Unstructured{Object: map[string]interface{}{
+			"apiVersion": "storage.kubenas.io/v1",
+			"kind":       "Disk",
+			"metadata":   map[string]interface{}{"name": name},
+			"spec": map[string]interface{}{
+				"device":     d.DevicePath,
+				"size":       fmt.Sprintf("%d", d.SizeBytes),
+				"rotational": d.Rotational,
+				"filesystem": d.Filesystem,
+				"state":      "Detected",
+				"health":     "Healthy",
+			},
+		}}
+
+		if _, err := a.dynamic.Resource(gvr).Get(ctx, name, metav1.GetOptions{}); err == nil {
+			_, _ = a.dynamic.Resource(gvr).Update(ctx, obj, metav1.UpdateOptions{})
+		} else {
+			_, _ = a.dynamic.Resource(gvr).Create(ctx, obj, metav1.CreateOptions{})
+		}
+	}
 }
 
 // runSmartChecks performs periodic deep SMART checks across all disks.

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubenas-disk-discovery
+  namespace: kubenas-system
+spec:
+  selector:
+    matchLabels:
+      app: kubenas-disk-discovery
+  template:
+    metadata:
+      labels:
+        app: kubenas-disk-discovery
+    spec:
+      serviceAccountName: kubenas-node-agent
+      hostPID: true
+      hostNetwork: true
+      containers:
+        - name: discovery
+          image: ghcr.io/kubenas/node-agent:latest
+          securityContext:
+            privileged: true
+          command: ["/bin/sh","-c"]
+          args:
+            - |
+              while true; do
+                lsblk -J > /tmp/lsblk.json
+                blkid > /tmp/blkid.txt
+                smartctl --scan > /tmp/smartctl-scan.txt
+                /kubenas-node-agent --node-name=$(NODE_NAME)
+                sleep 30
+              done
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: host-dev
+              mountPath: /host/dev
+      volumes:
+        - name: host-dev
+          hostPath:
+            path: /dev
