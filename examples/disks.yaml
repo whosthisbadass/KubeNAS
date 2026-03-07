@@ -1,0 +1,32 @@
+apiVersion: storage.kubenas.io/v1alpha1
+kind: Disk
+metadata:
+  name: disk1
+spec:
+  nodeName: snode-1
+  devicePath: /dev/sdb
+  filesystem: xfs
+  mountPoint: /mnt/disks/disk1
+  role: data
+---
+apiVersion: storage.kubenas.io/v1alpha1
+kind: Disk
+metadata:
+  name: disk2
+spec:
+  nodeName: snode-1
+  devicePath: /dev/sdc
+  filesystem: xfs
+  mountPoint: /mnt/disks/disk2
+  role: data
+---
+apiVersion: storage.kubenas.io/v1alpha1
+kind: Disk
+metadata:
+  name: parity1
+spec:
+  nodeName: snode-1
+  devicePath: /dev/sdd
+  filesystem: xfs
+  mountPoint: /mnt/disks/parity1
+  role: parity
