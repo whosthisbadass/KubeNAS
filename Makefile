@@ -102,9 +102,14 @@ install:
 deploy-crds:
 	kubectl apply -f deploy/crds/
 
+
+.PHONY: validate-manifests
+validate-manifests:
+	bash scripts/validate-manifests.sh
+
 .PHONY: undeploy
 undeploy:
-	kubectl delete -f deploy/examples/node-agent-daemonset.yaml --ignore-not-found
+	kubectl delete -f deploy/node-agent.yaml --ignore-not-found
 	kubectl delete -f deploy/operator.yaml --ignore-not-found
 	kubectl delete -f deploy/rbac/rbac.yaml --ignore-not-found
 	kubectl delete -f deploy/crds/ --ignore-not-found
@@ -139,4 +144,5 @@ help:
 	@echo "Deploy targets:"
 	@echo "  make install        - Full SNO install via install.sh"
 	@echo "  make deploy-crds    - Apply CRDs only"
+	@echo "  make validate-manifests - Run offline manifest structural checks"
 	@echo "  make undeploy       - Remove all KubeNAS resources"

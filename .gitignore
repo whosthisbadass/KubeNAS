@@ -1,0 +1,19 @@
+# Binaries / build output
+bin/
+dist/
+build/
+
+# Go
+vendor/
+*.test
+*.out
+coverage.out
+
+# Temp files
+tmp/
+*.tmp
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/

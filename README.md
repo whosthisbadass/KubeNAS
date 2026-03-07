@@ -1,9 +1,9 @@
 # KubeNAS
 
-[![CI](https://github.com/kubenas/kubenas/actions/workflows/ci.yml/badge.svg)](https://github.com/kubenas/kubenas/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/kubenas/kubenas)](https://goreportcard.com/report/github.com/kubenas/kubenas)
-[![License](https://img.shields.io/github/license/kubenas/kubenas)](./LICENSE)
-[![Release](https://img.shields.io/github/v/release/kubenas/kubenas)](https://github.com/kubenas/kubenas/releases)
+[![CI](https://github.com/whosthisbadass/KubeNAS/actions/workflows/ci.yml/badge.svg)](https://github.com/whosthisbadass/KubeNAS/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/whosthisbadass/KubeNAS)](https://goreportcard.com/report/github.com/whosthisbadass/KubeNAS)
+[![License](https://img.shields.io/github/license/whosthisbadass/KubeNAS)](./LICENSE)
+[![Release](https://img.shields.io/github/v/release/whosthisbadass/KubeNAS)](https://github.com/whosthisbadass/KubeNAS/releases)
 
 KubeNAS is a **Kubernetes-native NAS platform** for homelab and edge environments, built for **Single Node OpenShift (OKD)** and Kubernetes clusters.
 
@@ -102,8 +102,8 @@ See [Architecture Documentation](./docs/architecture.md) for full workflows.
 
 ```bash
 kubectl apply -f deploy/crds.yaml
-kubectl apply -f deploy/rbac.yaml
-kubectl apply -f deploy/scc.yaml
+kubectl apply -f deploy/rbac/rbac.yaml
+kubectl apply -f deploy/scc/scc.yaml
 kubectl apply -f deploy/operator.yaml
 kubectl apply -f deploy/node-agent.yaml
 ```
@@ -149,6 +149,7 @@ kubectl describe array media-array
 - [CRD Reference + Examples](./docs/crds.md)
 - [Scheduling Engine](./docs/scheduling.md)
 - [Repository Layout](./docs/repository-layout.md)
+- [Dependency Graph](./docs/dependency-graph.md)
 - [Development Roadmap](./docs/roadmap.md)
 - [MVP Implementation Plan](./docs/mvp-plan.md)
 - [Next Development Steps](./docs/next-development-steps.md)
@@ -159,8 +160,8 @@ kubectl describe array media-array
 
 ## Community
 
-- Issues: <https://github.com/kubenas/kubenas/issues>
-- Discussions: <https://github.com/kubenas/kubenas/discussions>
+- Issues: <https://github.com/whosthisbadass/KubeNAS/issues>
+- Discussions: <https://github.com/whosthisbadass/KubeNAS/discussions>
 - Security reports: see [SECURITY.md](./SECURITY.md)
 - Contributing guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
 
