@@ -1,31 +1,38 @@
-# Implementation Roadmap
+# Implementation Roadmap (Status-Aware)
 
-## Phase 1 — Prototype
+This roadmap reflects the repository's current implementation state.
 
-- node disk discovery and inventory (`Disk` status only)
-- manual array creation (`Array`)
-- mergerfs pool mount (`Pool`)
-- SnapRAID parity bootstrap + manual sync
-- basic SMB share publishing (`Share`)
+## Phase 1 — Prototype Foundation (**mostly complete**)
 
-## Phase 2 — Operator Automation
+- ✅ Node disk discovery and inventory feeding `Disk.status`
+- ✅ Core CRDs and controller implementations for Disk/Array/Pool/Share/Parity/Failure
+- ✅ SnapRAID config rendering and parity CronJob scheduling
+- ✅ mergerfs mount intent reconciliation
+- ✅ OpenShift-oriented deployment assets (CRDs, RBAC, SCC, OLM manifests)
 
-- full CRD set in `v1alpha1`
-- controller reconciliation loops per resource domain
-- placement scheduler integration (`PlacementPolicy`)
-- failure signal ingestion from SMART + `DiskFailure` lifecycle
-- automated parity schedules (`ParitySchedule`)
+## Phase 2 — Controller Coverage + Safety (**in progress**)
 
-## Phase 3 — Advanced Features
+- ⏳ Wire all implemented controllers in manager startup (notably `RebalanceReconciler`)
+- ⏳ Decide and implement active reconciliation strategy for `PlacementPolicy` and `CachePool`
+- ⏳ Add validating/mutating webhooks for critical storage invariants
+- ⏳ Replace optimistic ConfigMap operation signaling with durable operation state tracking
 
-- rebalance planner/executor (`RebalanceJob`)
-- cache pools (`CachePool`) with flush orchestration
-- metrics, alerts, and health dashboards
-- optional web UI (React)
+## Phase 3 — Data Plane Hardening + Reliability (**not started**)
 
-## Phase 4 — Enterprise Features
+- ⏳ Harden SMB/NFS serving lifecycle and runtime ownership
+- ⏳ Improve parity and pool mounted-state verification with deterministic feedback
+- ⏳ Expand structured observability (metrics, events, alerting)
+- ⏳ Build OKD SNO end-to-end conformance coverage
 
-- CSI driver for PVC workflow integration
-- multi-node and distributed array modes
-- snapshot orchestration and policy engine
-- S3-compatible object gateway on pooled storage
+## Phase 4 — Advanced Features (**future**)
+
+- `RebalanceJob` execution hardening and throughput controls
+- `CachePool` orchestration and flush policies
+- Optional operational UI
+
+## Phase 5 — Platform Expansion (**future**)
+
+- CSI integration for PVC-native workflows
+- Multi-node and distributed modes
+- Snapshot and policy engine
+- Object gateway capabilities

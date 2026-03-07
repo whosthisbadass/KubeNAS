@@ -168,4 +168,6 @@ kubectl describe array media-array
 
 ## Project Status
 
-KubeNAS now includes an **MVP operator and node agent implementation** with CRDs, controllers, OpenShift deployment manifests, and OLM bundle assets. Contributions are welcome for hardening, testing on real hardware, and production readiness.
+KubeNAS currently includes a **working MVP prototype** with CRDs, core reconcilers (Disk/Array/Pool/Share/Parity/Failure), a ConfigMap-driven node-agent integration path, OpenShift deployment manifests, and OLM bundle assets.
+
+Current priorities are controller coverage completion (including APIs already defined in CRDs), operation-lifecycle durability, stronger admission validation, and OKD SNO end-to-end hardening before production-readiness claims.

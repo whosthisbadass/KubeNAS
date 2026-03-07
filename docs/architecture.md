@@ -20,7 +20,7 @@
 |  | CacheController    |                                  |  |
 |  +---------+----------+                                  |  |
 |            |                                             |  |
-|            | gRPC/HTTP + K8s API                         |  |
+|            | K8s API (ConfigMap operation/status channel)|  |
 |            v                                             |  |
 |  +--------------------------+                            |  |
 |  | Node Agent (DaemonSet)   | ---- SMART/disk ops ----+ |  |
@@ -42,6 +42,8 @@ SMB/NFS exports from pool paths                              |
 
 The operator is built with Operator SDK (Go) and reconciles CRDs into host-level operations via the Node Agent.
 
+Current implementation uses a Kubernetes API communication path (ConfigMaps) between operator and node agent; direct RPC is not the default path in this repository state.
+
 ### Controllers
 
 - **DiskController**: validates disk metadata, mount intent, health conditions.
@@ -49,10 +51,10 @@ The operator is built with Operator SDK (Go) and reconciles CRDs into host-level
 - **PoolController**: renders mergerfs policy and mount options.
 - **ShareController**: materializes SMB/NFS exports from `Share` resources.
 - **ParityController**: schedules and executes SnapRAID sync/scrub/check workflows.
-- **PlacementController**: computes target disk selection and placement hints.
+- **Placement logic**: `PlacementScheduler` is implemented in-controller code, but no active PlacementPolicy reconciler is currently registered in manager startup.
 - **FailureController**: opens/remediates `DiskFailure` lifecycle.
-- **RebalanceController**: orchestrates background file movement.
-- **CacheController**: configures SSD/NVMe write/read cache behavior.
+- **RebalanceController**: implemented, but currently not registered in manager startup.
+- **CacheController**: not yet implemented/registered in the current manager wiring.
 
 ## 3) Node Agent Design
 
