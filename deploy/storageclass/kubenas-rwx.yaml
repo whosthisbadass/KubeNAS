@@ -1,0 +1,11 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: kubenas-rwx
+provisioner: csi.kubenas.io
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+mountOptions:
+  - bind
+parameters:
+  accessModes: RWX

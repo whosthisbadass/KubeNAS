@@ -1,0 +1,150 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: disks.storage.kubenas.io
+spec:
+  group: storage.kubenas.io
+  names:
+    kind: Disk
+    plural: disks
+    singular: disk
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                device: {type: string}
+                size: {type: string}
+                rotational: {type: boolean}
+                filesystem: {type: string}
+                labels:
+                  type: object
+                  additionalProperties: {type: string}
+                health: {type: string}
+                state: {type: string}
+            status:
+              type: object
+              properties:
+                state: {type: string}
+                health: {type: string}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: diskclaims.storage.kubenas.io
+spec:
+  group: storage.kubenas.io
+  names: {kind: DiskClaim, plural: diskclaims, singular: diskclaim}
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties: {spec: {type: object, properties: {disk: {type: string}, pool: {type: string}}}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: unassigneddisks.storage.kubenas.io
+spec:
+  group: storage.kubenas.io
+  names: {kind: UnassignedDisk, plural: unassigneddisks, singular: unassigneddisk}
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties: {spec: {type: object, properties: {disk: {type: string}, mountPoint: {type: string}, filesystem: {type: string}}}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata: {name: storagepools.storage.kubenas.io}
+spec:
+  group: storage.kubenas.io
+  names: {kind: StoragePool, plural: storagepools, singular: storagepool}
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties: {spec: {type: object, properties: {diskSelector: {type: object, additionalProperties: {type: string}}, parityDisks: {type: array, items: {type: string}}, splitLevel: {type: integer}}}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata: {name: filesystems.storage.kubenas.io}
+spec:
+  group: storage.kubenas.io
+  names: {kind: Filesystem, plural: filesystems, singular: filesystem}
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties: {spec: {type: object, properties: {pool: {type: string}, mountpoint: {type: string}}}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata: {name: shares.storage.kubenas.io}
+spec:
+  group: storage.kubenas.io
+  names: {kind: Share, plural: shares, singular: share}
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties: {spec: {type: object, properties: {filesystem: {type: string}, path: {type: string}}}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata: {name: volumes.storage.kubenas.io}
+spec:
+  group: storage.kubenas.io
+  names: {kind: Volume, plural: volumes, singular: volume}
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties: {spec: {type: object, properties: {share: {type: string}, path: {type: string}}}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata: {name: tierpolicies.storage.kubenas.io}
+spec:
+  group: storage.kubenas.io
+  names: {kind: TierPolicy, plural: tierpolicies, singular: tierpolicy}
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties: {spec: {type: object, properties: {sourcePool: {type: string}, targetPool: {type: string}, moveAfter: {type: string}}}}
