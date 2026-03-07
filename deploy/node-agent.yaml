@@ -1,0 +1,187 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubenas-node-agent
+  namespace: kubenas-system
+  labels:
+    app.kubernetes.io/name: kubenas-node-agent
+    app.kubernetes.io/component: node-agent
+    app.kubernetes.io/part-of: kubenas
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubenas-node-agent
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubenas-node-agent
+        app.kubernetes.io/component: node-agent
+        app.kubernetes.io/part-of: kubenas
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+    spec:
+      serviceAccountName: kubenas-node-agent
+
+      # Required: must run on nodes with the storage-node label.
+      # Label your SNO node: kubectl label node <node> kubenas.io/storage-node=true
+      nodeSelector:
+        kubenas.io/storage-node: "true"
+
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - operator: Exists  # Tolerate all taints for storage workloads.
+
+      hostNetwork: true
+      hostPID: false
+      hostIPC: false
+      dnsPolicy: ClusterFirstWithHostNet
+
+      priorityClassName: system-node-critical
+
+      initContainers:
+        # Verify required host tools are available.
+        - name: host-tools-check
+          image: ghcr.io/kubenas/node-agent:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Checking host tools..."
+              TOOLS="smartctl lsblk blkid mount umount mkfs.xfs mergerfs snapraid"
+              MISSING=""
+              for tool in $TOOLS; do
+                if ! chroot /host which "$tool" > /dev/null 2>&1; then
+                  MISSING="$MISSING $tool"
+                fi
+              done
+              if [ -n "$MISSING" ]; then
+                echo "WARNING: Missing host tools:$MISSING"
+                echo "Install on CoreOS node: rpm-ostree install smartmontools mergerfs snapraid"
+              fi
+              echo "Tool check complete."
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+          securityContext:
+            privileged: true
+
+      containers:
+        - name: agent
+          image: ghcr.io/kubenas/node-agent:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /kubenas-node-agent
+          args:
+            - --node-name=$(NODE_NAME)
+            - --host-dev=/host/dev
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+          ports:
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+
+          livenessProbe:
+            exec:
+              command:
+                - /kubenas-node-agent
+                - --health-check
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+
+          securityContext:
+            privileged: true
+            runAsUser: 0
+            allowPrivilegeEscalation: true
+
+          volumeMounts:
+            # Host /dev for block device access.
+            - name: host-dev
+              mountPath: /host/dev
+              readOnly: false
+            # Host /mnt for disk mount management.
+            - name: host-mnt
+              mountPath: /mnt
+              mountPropagation: Bidirectional
+              readOnly: false
+            # Host /proc for /proc/mounts inspection.
+            - name: host-proc
+              mountPath: /host/proc
+              readOnly: true
+            # Host /sys for block device metadata.
+            - name: host-sys
+              mountPath: /host/sys
+              readOnly: true
+            # Host /etc for fstab management.
+            - name: host-etc
+              mountPath: /host/etc
+              readOnly: false
+            # Host /run for udev socket access.
+            - name: host-run
+              mountPath: /host/run
+              readOnly: true
+            # SnapRAID config (written by operator ConfigMap).
+            - name: snapraid-config
+              mountPath: /etc/snapraid
+              readOnly: false
+            # Temp working directory.
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-mnt
+          hostPath:
+            path: /mnt
+            type: DirectoryOrCreate
+        - name: host-proc
+          hostPath:
+            path: /proc
+        - name: host-sys
+          hostPath:
+            path: /sys
+        - name: host-etc
+          hostPath:
+            path: /etc
+        - name: host-run
+          hostPath:
+            path: /run
+        - name: snapraid-config
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+
+      terminationGracePeriodSeconds: 60

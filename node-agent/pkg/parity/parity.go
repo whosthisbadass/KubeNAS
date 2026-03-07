@@ -4,6 +4,7 @@ package parity
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -148,8 +149,9 @@ func WriteConfig(confPath, content string) error {
 
 // openFileTruncate opens a file for writing, creating or truncating it.
 // This is factored out to avoid importing os in the stub.
-func openFileTruncate(path string) (interface{ WriteString(string) (int, error); Close() error }, error) {
-	// Real implementation uses os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644).
-	// Stubbed here to avoid cyclic imports; replaced in integration.
-	return nil, fmt.Errorf("not implemented in stub — use os.OpenFile in production build")
+func openFileTruncate(path string) (interface {
+	WriteString(string) (int, error)
+	Close() error
+}, error) {
+	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 }
