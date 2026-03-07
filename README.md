@@ -148,6 +148,7 @@ kubectl describe array media-array
 - [Repository Layout](./docs/repository-layout.md)
 - [Development Roadmap](./docs/roadmap.md)
 - [MVP Implementation Plan](./docs/mvp-plan.md)
+- [Next Development Steps](./docs/next-development-steps.md)
 - [Development Stack](./docs/development-stack.md)
 - [Future Vision](./docs/future-vision.md)
 
