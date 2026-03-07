@@ -28,12 +28,23 @@ kubenas/
  ├── node-agent/
  │    ├── cmd/
  │    │    └── kubenas-node-agent/
- │    ├── disk/
- │    ├── smart/
- │    └── internal/
+ │    ├── pkg/
+ │    │    ├── disk/
+ │    │    ├── smart/
+ │    │    └── parity/
+ │    ├── mount/
+ │    └── snapraid/
+ ├── storage/
+ │    ├── mergerfs/
+ │    ├── snapraid/
+ │    └── scheduler/
  ├── deploy/
  │    ├── crds/
  │    ├── operator.yaml
+ │    ├── node-agent.yaml
+ │    ├── rbac.yaml
+ │    ├── scc.yaml
+ │    ├── machineconfig/
  │    └── examples/
  ├── charts/
  │    └── kubenas/
@@ -62,6 +73,7 @@ kubenas/
 - `docs/`: architecture, operations, CRD reference, roadmap.
 - `operator/`: Kubernetes operator APIs/controllers and manager runtime.
 - `node-agent/`: host-level disk and health operations.
+- `storage/`: reusable storage-domain logic for mergerfs, snapraid config generation, and placement scoring.
 - `deploy/`: deploy-time manifests and generated bundles.
 - `charts/`: Helm packaging for easy install.
 - `examples/`: sample CRs for common NAS scenarios.
