@@ -1,0 +1,11 @@
+apiVersion: storage.kubenas.io/v1alpha1
+kind: Share
+metadata:
+  name: media-smb
+spec:
+  poolRef: main-pool
+  path: /media
+  protocol: SMB
+  smb:
+    browseable: true
+    readOnly: false

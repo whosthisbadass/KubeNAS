@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubenas-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubenas-operator
+  namespace: kubenas-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubenas-operator
+  template:
+    metadata:
+      labels:
+        app: kubenas-operator
+    spec:
+      serviceAccountName: kubenas-operator
+      containers:
+        - name: manager
+          image: ghcr.io/kubenas/operator:latest
+          imagePullPolicy: IfNotPresent
