@@ -41,6 +41,11 @@ func (r *ParityReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	snapraidConfigName, err := r.resolveSnapraidConfigName(ctx, ps)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("resolving snapraid config for array %q: %w", ps.Spec.ArrayRef, err)
+	}
+
 	// Ensure a CronJob exists for each parity operation type.
 	for _, op := range []struct {
 		Name     string
@@ -51,7 +56,7 @@ func (r *ParityReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		{Name: "check", Schedule: ps.Spec.CheckCron, Command: "snapraid check"},
 		{Name: "scrub", Schedule: ps.Spec.ScrubCron, Command: fmt.Sprintf("snapraid scrub -p %d", r.scrubPct(ps))},
 	} {
-		if err := r.ensureCronJob(ctx, log, ps, op.Name, op.Schedule, op.Command); err != nil {
+		if err := r.ensureCronJob(ctx, log, ps, snapraidConfigName, op.Name, op.Schedule, op.Command); err != nil {
 			return ctrl.Result{}, fmt.Errorf("ensuring %s cronjob: %w", op.Name, err)
 		}
 	}
@@ -59,11 +64,31 @@ func (r *ParityReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	return ctrl.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
+func (r *ParityReconciler) resolveSnapraidConfigName(ctx context.Context, ps *storagev1alpha1.ParitySchedule) (string, error) {
+	array := &storagev1alpha1.Array{}
+	if err := r.Get(ctx, types.NamespacedName{Name: ps.Spec.ArrayRef, Namespace: ps.Namespace}, array); err != nil {
+		return "", err
+	}
+	if len(array.Spec.DataDisks) == 0 {
+		return "", fmt.Errorf("array has no data disks")
+	}
+
+	primaryDisk := &storagev1alpha1.Disk{}
+	if err := r.Get(ctx, types.NamespacedName{Name: array.Spec.DataDisks[0]}, primaryDisk); err != nil {
+		return "", err
+	}
+	if primaryDisk.Spec.NodeName == "" {
+		return "", fmt.Errorf("primary data disk %q has empty nodeName", primaryDisk.Name)
+	}
+
+	return fmt.Sprintf("kubenas-snapraid-%s", primaryDisk.Spec.NodeName), nil
+}
+
 // ensureCronJob creates or updates a SnapRAID CronJob for a given operation.
-func (r *ParityReconciler) ensureCronJob(ctx context.Context, log logr.Logger, ps *storagev1alpha1.ParitySchedule, opName, schedule, command string) error {
+func (r *ParityReconciler) ensureCronJob(ctx context.Context, log logr.Logger, ps *storagev1alpha1.ParitySchedule, snapraidConfigName, opName, schedule, command string) error {
 	cronJobName := fmt.Sprintf("kubenas-parity-%s-%s", ps.Name, opName)
 
-	desired := r.buildCronJob(ps, cronJobName, schedule, command)
+	desired := r.buildCronJob(ps, cronJobName, schedule, command, snapraidConfigName)
 
 	existing := &batchv1.CronJob{}
 	err := r.Get(ctx, types.NamespacedName{Name: cronJobName, Namespace: ps.Namespace}, existing)
@@ -81,7 +106,7 @@ func (r *ParityReconciler) ensureCronJob(ctx context.Context, log logr.Logger, p
 }
 
 // buildCronJob constructs a CronJob manifest for a SnapRAID operation.
-func (r *ParityReconciler) buildCronJob(ps *storagev1alpha1.ParitySchedule, name, schedule, command string) *batchv1.CronJob {
+func (r *ParityReconciler) buildCronJob(ps *storagev1alpha1.ParitySchedule, name, schedule, command, snapraidConfigName string) *batchv1.CronJob {
 	backoffLimit := int32(2)
 	successLimit := int32(3)
 	failedLimit := int32(3)
@@ -116,7 +141,6 @@ func (r *ParityReconciler) buildCronJob(ps *storagev1alpha1.ParitySchedule, name
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
 							RestartPolicy: corev1.RestartPolicyOnFailure,
-							// Schedule on the storage node via node affinity (set externally via webhook or admission).
 							Containers: []corev1.Container{
 								{
 									Name:    "snapraid",
@@ -143,7 +167,7 @@ func (r *ParityReconciler) buildCronJob(ps *storagev1alpha1.ParitySchedule, name
 									VolumeSource: corev1.VolumeSource{
 										ConfigMap: &corev1.ConfigMapVolumeSource{
 											LocalObjectReference: corev1.LocalObjectReference{
-												Name: fmt.Sprintf("kubenas-snapraid-%s", ps.Spec.ArrayRef),
+												Name: snapraidConfigName,
 											},
 										},
 									},
