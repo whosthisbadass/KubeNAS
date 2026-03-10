@@ -96,10 +96,12 @@ func (r *ParityReconciler) buildCronJob(ps *storagev1alpha1.ParitySchedule, name
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: storagev1alpha1.GroupVersion.String(),
-					Kind:       "ParitySchedule",
-					Name:       ps.Name,
-					UID:        ps.UID,
+					APIVersion:         storagev1alpha1.GroupVersion.String(),
+					Kind:               "ParitySchedule",
+					Name:               ps.Name,
+					UID:                ps.UID,
+					Controller:         boolPtr(true),
+					BlockOwnerDeletion: boolPtr(true),
 				},
 			},
 		},
