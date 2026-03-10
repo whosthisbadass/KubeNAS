@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	storagev1 "github.com/kubenas/kubenas/operator/api/v1"
 	storagev1alpha1 "github.com/kubenas/kubenas/operator/api/v1alpha1"
 	"github.com/kubenas/kubenas/operator/controllers"
 )
@@ -29,6 +30,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(batchv1.AddToScheme(scheme))
+	utilruntime.Must(storagev1.AddToScheme(scheme))
 	utilruntime.Must(storagev1alpha1.AddToScheme(scheme))
 }
 
@@ -61,6 +63,7 @@ func main() {
 	// Initialize node agent client.
 	// In production this connects to the DaemonSet pods via the K8s API.
 	agentClient := controllers.NewKubernetesAgentClient(mgr.GetClient())
+	placementScheduler := &controllers.PlacementScheduler{}
 
 	// Register all controllers.
 
@@ -126,9 +129,11 @@ func main() {
 	}
 
 	if err = (&controllers.RebalanceReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Rebalance"),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("Rebalance"),
+		Scheme:    mgr.GetScheme(),
+		Agent:     agentClient,
+		Scheduler: placementScheduler,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Rebalance")
 		os.Exit(1)

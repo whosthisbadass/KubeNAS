@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -67,7 +68,7 @@ func (r *ShareReconciler) reconcileSMBShare(ctx context.Context, log logr.Logger
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: share.Namespace, Labels: map[string]string{"app": cmName}},
 		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "samba", Image: "ghcr.io/servercontainers/samba", Ports: []corev1.ContainerPort{{ContainerPort: 445}}, LivenessProbe: &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(445)}}, InitialDelaySeconds: 10}, ReadinessProbe: &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(445)}}, InitialDelaySeconds: 5}, VolumeMounts: []corev1.VolumeMount{{Name: "pool", MountPath: "/share"}, {Name: "config", MountPath: "/etc/samba/smb.conf", SubPath: "smb.conf"}}}}, Volumes: []corev1.Volume{{Name: "pool", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: sharePath}}}, {Name: "config", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: cmName}}}}}}}
 	_ = controllerutil.SetControllerReference(share, pod, r.Scheme)
-	if err := upsertObject(ctx, r.Client, pod); err != nil {
+	if err := upsertPodObject(ctx, r.Client, pod); err != nil {
 		return err
 	}
 
@@ -91,7 +92,7 @@ func (r *ShareReconciler) reconcileNFSShare(ctx context.Context, log logr.Logger
 	}
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: share.Namespace, Labels: map[string]string{"app": cmName}}, Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "nfs", Image: "ghcr.io/nfs-ganesha/nfs-ganesha", Ports: []corev1.ContainerPort{{ContainerPort: 2049}}, LivenessProbe: &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(2049)}}, InitialDelaySeconds: 10}, ReadinessProbe: &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(2049)}}, InitialDelaySeconds: 5}, VolumeMounts: []corev1.VolumeMount{{Name: "pool", MountPath: "/export"}}}}, Volumes: []corev1.Volume{{Name: "pool", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: sharePath}}}}}}
 	_ = controllerutil.SetControllerReference(share, pod, r.Scheme)
-	if err := upsertObject(ctx, r.Client, pod); err != nil {
+	if err := upsertPodObject(ctx, r.Client, pod); err != nil {
 		return err
 	}
 	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: cmName + "-svc", Namespace: share.Namespace}, Spec: corev1.ServiceSpec{Selector: map[string]string{"app": cmName}, Ports: []corev1.ServicePort{{Name: "nfs", Port: 2049, TargetPort: intstr.FromInt(2049)}}}}
@@ -102,6 +103,37 @@ func (r *ShareReconciler) reconcileNFSShare(ctx context.Context, log logr.Logger
 	share.Status.PodName = pod.Name
 	share.Status.ServiceName = svc.Name
 	return nil
+}
+
+func upsertPodObject(ctx context.Context, c client.Client, pod *corev1.Pod) error {
+	key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+	existing := &corev1.Pod{}
+	if err := c.Get(ctx, key, existing); err != nil {
+		if errors.IsNotFound(err) {
+			return c.Create(ctx, pod)
+		}
+		return err
+	}
+
+	pod.SetResourceVersion(existing.GetResourceVersion())
+	if err := c.Update(ctx, pod); err != nil {
+		if isImmutablePodUpdateError(err) {
+			if delErr := c.Delete(ctx, existing); delErr != nil && !errors.IsNotFound(delErr) {
+				return delErr
+			}
+			pod.SetResourceVersion("")
+			return c.Create(ctx, pod)
+		}
+		return err
+	}
+	return nil
+}
+
+func isImmutablePodUpdateError(err error) bool {
+	if errors.IsInvalid(err) || errors.IsForbidden(err) {
+		return strings.Contains(strings.ToLower(err.Error()), "immutable")
+	}
+	return false
 }
 
 func upsertObject(ctx context.Context, c client.Client, obj client.Object) error {
