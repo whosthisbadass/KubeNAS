@@ -32,7 +32,6 @@ import (
 )
 
 const (
-	namespace          = "kubenas-system"
 	discoveryInterval  = 30 * time.Second
 	smartCheckInterval = 5 * time.Minute
 )
@@ -93,11 +92,16 @@ func main() {
 
 	// Start the main agent loop.
 	agent := &NodeAgent{
-		k8s:         k8sClient,
-		dynamic:     dynamic.NewForConfigOrDie(config),
-		nodeName:    nodeName,
-		hostDevPath: hostDevPath,
-		log:         log,
+		k8s:                 k8sClient,
+		dynamic:             dynamic.NewForConfigOrDie(config),
+		nodeName:            nodeName,
+		hostDevPath:         hostDevPath,
+		namespace:           os.Getenv("WATCH_NAMESPACE"),
+		processedOperations: map[string]time.Time{},
+		log:                 log,
+	}
+	if agent.namespace == "" {
+		agent.namespace = "kubenas-system"
 	}
 
 	agent.Run(ctx)
@@ -106,11 +110,13 @@ func main() {
 
 // NodeAgent is the main agent struct managing all node-level operations.
 type NodeAgent struct {
-	k8s         kubernetes.Interface
-	dynamic     dynamic.Interface
-	nodeName    string
-	hostDevPath string
-	log         interface {
+	k8s                 kubernetes.Interface
+	dynamic             dynamic.Interface
+	nodeName            string
+	hostDevPath         string
+	namespace           string
+	processedOperations map[string]time.Time
+	log                 interface {
 		Info(msg string, keysAndValues ...interface{})
 		Error(err error, msg string, keysAndValues ...interface{})
 	}
@@ -266,7 +272,7 @@ func (a *NodeAgent) runSmartChecks(ctx context.Context) {
 
 // processOperationRequests watches for operator-posted operation ConfigMaps and executes them.
 func (a *NodeAgent) processOperationRequests(ctx context.Context) {
-	cms, err := a.k8s.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{
+	cms, err := a.k8s.CoreV1().ConfigMaps(a.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("kubenas.io/agent-op=true,kubenas.io/node=%s", a.nodeName),
 	})
 	if err != nil {
@@ -281,8 +287,18 @@ func (a *NodeAgent) processOperationRequests(ctx context.Context) {
 
 // executeOperation runs the action described in an operation ConfigMap.
 func (a *NodeAgent) executeOperation(ctx context.Context, cm corev1.ConfigMap) {
+	opID := cm.Data["operationID"]
+	if opID == "" {
+		opID = cm.Name
+	}
+	if _, seen := a.processedOperations[opID]; seen {
+		return
+	}
+
 	opType := cm.Data["operation"]
-	a.log.Info("executing agent operation", "op", opType, "cm", cm.Name)
+	cm.Data["status.state"] = "Running"
+	cm.Data["status.message"] = "operation in progress"
+	_, _ = a.k8s.CoreV1().ConfigMaps(a.namespace).Update(ctx, &cm, metav1.UpdateOptions{})
 
 	var execErr error
 	switch opType {
@@ -290,27 +306,39 @@ func (a *NodeAgent) executeOperation(ctx context.Context, cm corev1.ConfigMap) {
 		var req MountRequest
 		if err := json.Unmarshal([]byte(cm.Data["payload"]), &req); err == nil {
 			execErr = disk.MountDevice(req.DevicePath, req.MountPoint, req.Filesystem)
+			if execErr == nil {
+				execErr = disk.EnsureFstabEntry(req.DevicePath, req.MountPoint, req.Filesystem, "defaults")
+			}
+		} else {
+			execErr = err
 		}
 	case "unmount":
 		var req UnmountRequest
 		if err := json.Unmarshal([]byte(cm.Data["payload"]), &req); err == nil {
 			execErr = disk.UnmountDevice(req.MountPoint)
+		} else {
+			execErr = err
 		}
 	case "mergerfs-mount":
 		var req MergerFSMountRequest
 		if err := json.Unmarshal([]byte(cm.Data["payload"]), &req); err == nil {
 			execErr = disk.MountMergerFS(req.Branches, req.MountPoint, req.CategoryCreate, req.MinFreeSpace, req.ExtraOptions)
+		} else {
+			execErr = err
 		}
 	default:
-		a.log.Info("unknown operation type, skipping", "op", opType)
+		execErr = fmt.Errorf("unknown operation type %s", opType)
 	}
 
 	if execErr != nil {
-		a.log.Error(execErr, "operation failed", "op", opType)
+		cm.Data["status.state"] = "Failed"
+		cm.Data["status.message"] = execErr.Error()
+	} else {
+		cm.Data["status.state"] = "Success"
+		cm.Data["status.message"] = "completed"
 	}
-
-	// Delete the operation ConfigMap after processing (consumed pattern).
-	_ = a.k8s.CoreV1().ConfigMaps(namespace).Delete(ctx, cm.Name, metav1.DeleteOptions{})
+	a.processedOperations[opID] = time.Now()
+	_, _ = a.k8s.CoreV1().ConfigMaps(a.namespace).Update(ctx, &cm, metav1.UpdateOptions{})
 }
 
 // upsertConfigMap creates or updates a ConfigMap with the given data.
@@ -318,7 +346,7 @@ func (a *NodeAgent) upsertConfigMap(ctx context.Context, name string, data map[s
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: namespace,
+			Namespace: a.namespace,
 			Labels: map[string]string{
 				"kubenas.io/agent-status": "true",
 				"kubenas.io/node":         a.nodeName,
@@ -327,10 +355,10 @@ func (a *NodeAgent) upsertConfigMap(ctx context.Context, name string, data map[s
 		Data: data,
 	}
 
-	existing, err := a.k8s.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+	existing, err := a.k8s.CoreV1().ConfigMaps(a.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		// Create.
-		if _, createErr := a.k8s.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{}); createErr != nil {
+		if _, createErr := a.k8s.CoreV1().ConfigMaps(a.namespace).Create(ctx, cm, metav1.CreateOptions{}); createErr != nil {
 			a.log.Error(createErr, "failed to create status ConfigMap", "name", name)
 		}
 		return
@@ -338,7 +366,7 @@ func (a *NodeAgent) upsertConfigMap(ctx context.Context, name string, data map[s
 
 	// Update.
 	existing.Data = data
-	if _, updateErr := a.k8s.CoreV1().ConfigMaps(namespace).Update(ctx, existing, metav1.UpdateOptions{}); updateErr != nil {
+	if _, updateErr := a.k8s.CoreV1().ConfigMaps(a.namespace).Update(ctx, existing, metav1.UpdateOptions{}); updateErr != nil {
 		a.log.Error(updateErr, "failed to update status ConfigMap", "name", name)
 	}
 }

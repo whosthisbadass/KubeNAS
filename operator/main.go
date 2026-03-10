@@ -16,7 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	storagev1 "github.com/kubenas/kubenas/operator/api/v1"
 	storagev1alpha1 "github.com/kubenas/kubenas/operator/api/v1alpha1"
 	"github.com/kubenas/kubenas/operator/controllers"
 )
@@ -31,7 +30,6 @@ func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
 	utilruntime.Must(batchv1.AddToScheme(scheme))
 	utilruntime.Must(storagev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(storagev1.AddToScheme(scheme))
 }
 
 func main() {
@@ -65,6 +63,19 @@ func main() {
 	agentClient := controllers.NewKubernetesAgentClient(mgr.GetClient())
 
 	// Register all controllers.
+
+	if err = (&storagev1alpha1.Disk{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Disk")
+		os.Exit(1)
+	}
+	if err = (&storagev1alpha1.Array{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Array")
+		os.Exit(1)
+	}
+	if err = (&storagev1alpha1.Share{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Share")
+		os.Exit(1)
+	}
 	if err = (&controllers.DiskReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Disk"),
@@ -114,45 +125,39 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = (&controllers.RebalanceReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Rebalance"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Rebalance")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.CachePoolReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("CachePool"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CachePool")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.PlacementPolicyReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("PlacementPolicy"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PlacementPolicy")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.FailureReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Failure"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Failure")
-		os.Exit(1)
-	}
-
-	if err = controllers.NewDiskController(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("DiskV1"), mgr.GetScheme()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "DiskV1")
-		os.Exit(1)
-	}
-	if err = controllers.NewDiskClaimController(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("DiskClaimV1"), mgr.GetScheme()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "DiskClaimV1")
-		os.Exit(1)
-	}
-	if err = controllers.NewUnassignedDiskController(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("UnassignedDiskV1"), mgr.GetScheme()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "UnassignedDiskV1")
-		os.Exit(1)
-	}
-	if err = controllers.NewPoolController(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("StoragePoolV1"), mgr.GetScheme()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "StoragePoolV1")
-		os.Exit(1)
-	}
-	if err = controllers.NewFilesystemController(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("FilesystemV1"), mgr.GetScheme()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "FilesystemV1")
-		os.Exit(1)
-	}
-	if err = controllers.NewShareControllerV1(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("ShareV1"), mgr.GetScheme()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ShareV1")
-		os.Exit(1)
-	}
-	if err = controllers.NewVolumeController(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("VolumeV1"), mgr.GetScheme()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "VolumeV1")
-		os.Exit(1)
-	}
-	if err = controllers.NewTierController(mgr.GetClient(), ctrl.Log.WithName("controllers").WithName("TierPolicyV1"), mgr.GetScheme()).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "TierPolicyV1")
 		os.Exit(1)
 	}
 

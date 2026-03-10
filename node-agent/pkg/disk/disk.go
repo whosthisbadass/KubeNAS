@@ -15,7 +15,7 @@ import (
 )
 
 // DeviceInfo contains metadata for a block device discovered on the host.
-type DeviceInfo struct {
+type Device struct {
 	Name       string   `json:"name"`
 	DevicePath string   `json:"devicePath"`
 	SizeBytes  int64    `json:"sizeBytes"`
@@ -44,7 +44,7 @@ type lsblkDevice struct {
 }
 
 // DiscoverDevices runs lsblk and returns all block devices on the host.
-func DiscoverDevices() ([]*DeviceInfo, error) {
+func DiscoverDevices() ([]Device, error) {
 	cmd := exec.Command("lsblk", "--json", "--output",
 		"NAME,SIZE,ROTA,MODEL,SERIAL,FSTYPE,MOUNTPOINT", "--bytes", "--nodeps")
 	output, err := cmd.Output()
@@ -57,7 +57,7 @@ func DiscoverDevices() ([]*DeviceInfo, error) {
 		return nil, fmt.Errorf("parsing lsblk output: %w", err)
 	}
 
-	var devices []*DeviceInfo
+	var devices []Device
 	for _, d := range lsblk.Blockdevices {
 		// Skip loop devices, CD-ROM, etc.
 		if strings.HasPrefix(d.Name, "loop") || strings.HasPrefix(d.Name, "sr") {
@@ -65,7 +65,7 @@ func DiscoverDevices() ([]*DeviceInfo, error) {
 		}
 
 		sizeBytes, _ := strconv.ParseInt(d.Size, 10, 64)
-		devices = append(devices, &DeviceInfo{
+		devices = append(devices, Device{
 			Name:       d.Name,
 			DevicePath: "/dev/" + d.Name,
 			SizeBytes:  sizeBytes,

@@ -191,13 +191,13 @@ func (r *FailureReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// Check if a DiskFailure already exists for this disk.
 	failureName := fmt.Sprintf("%s-failure", disk.Name)
 	existing := &storagev1alpha1.DiskFailure{}
-	err := r.Get(ctx, types.NamespacedName{Name: failureName, Namespace: "kubenas-system"}, existing)
+	err := r.Get(ctx, types.NamespacedName{Name: failureName, Namespace: operatorNamespace()}, existing)
 	if errors.IsNotFound(err) {
 		log.Info("opening DiskFailure", "disk", disk.Name, "severity", severity)
 		failure := &storagev1alpha1.DiskFailure{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      failureName,
-				Namespace: "kubenas-system",
+				Namespace: operatorNamespace(),
 			},
 			Spec: storagev1alpha1.DiskFailureSpec{
 				DiskRef:           disk.Name,
@@ -226,7 +226,7 @@ func (r *FailureReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 func (r *FailureReconciler) resolveOpenFailures(ctx context.Context, log logr.Logger, disk *storagev1alpha1.Disk) (ctrl.Result, error) {
 	failureName := fmt.Sprintf("%s-failure", disk.Name)
 	existing := &storagev1alpha1.DiskFailure{}
-	if err := r.Get(ctx, types.NamespacedName{Name: failureName, Namespace: "kubenas-system"}, existing); err != nil {
+	if err := r.Get(ctx, types.NamespacedName{Name: failureName, Namespace: operatorNamespace()}, existing); err != nil {
 		return ctrl.Result{}, nil // No open failure, nothing to do.
 	}
 
