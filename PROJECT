@@ -1,0 +1,7 @@
+domain: kubenas.io
+layout:
+- go.kubebuilder.io/v4
+multigroup: false
+projectName: kubenas
+repo: github.com/whosthisbadass/KubeNAS
+version: "3"

@@ -1,0 +1,10 @@
+apiVersion: storage.kubenas.io/v1alpha1
+kind: Pool
+metadata:
+  name: main-pool
+spec:
+  arrayRef: media-array
+  mountPoint: /mnt/pool
+  mergerfs:
+    categoryCreate: epmfs
+    minFreeSpace: 50Gi
