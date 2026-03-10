@@ -1,148 +1,109 @@
-# KubeNAS Operator Makefile
-# Provides standard development, build, and deployment targets.
+# Image URL to use all building/pushing image targets
+IMG ?= controller:latest
+BUNDLE_IMG ?= controller-bundle:latest
 
-# ── Configuration ──────────────────────────────────────────────────
-REGISTRY     ?= ghcr.io/kubenas
-VERSION      ?= 0.1.0
-IMG_OPERATOR ?= $(REGISTRY)/operator:$(VERSION)
-IMG_AGENT    ?= $(REGISTRY)/node-agent:$(VERSION)
+# Produce CRDs that work back to Kubernetes 1.27
+CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-# Tools
-ENVTEST_K8S_VERSION ?= 1.29
-CONTROLLER_GEN      ?= go run sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-KUSTOMIZE           ?= go run sigs.k8s.io/kustomize/kustomize/v5@latest
-GOLANGCI_LINT       ?= go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-ENVTEST             ?= go run sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+KUSTOMIZE ?= $(shell which kustomize)
+CONTROLLER_GEN ?= $(shell which controller-gen)
+ENVTEST ?= $(shell which setup-envtest)
 
-# ── Go Targets ─────────────────────────────────────────────────────
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
 
 .PHONY: all
-all: fmt vet build
+all: build
+
+##@ Development
+
+.PHONY: manifests
+manifests: controller-gen
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+.PHONY: generate
+generate: controller-gen
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
 fmt:
-	cd operator && go fmt ./...
-	cd node-agent && go fmt ./...
+	go fmt ./...
 
 .PHONY: vet
 vet:
-	cd operator && go vet ./...
-	cd node-agent && go vet ./...
-
-.PHONY: lint
-lint:
-	cd operator && $(GOLANGCI_LINT) run ./...
-	cd node-agent && $(GOLANGCI_LINT) run ./...
-
-.PHONY: build
-build: build-operator build-agent
-
-.PHONY: build-operator
-build-operator:
-	cd operator && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-		go build -ldflags="-X main.version=$(VERSION)" -o bin/manager ./main.go
-
-.PHONY: build-agent
-build-agent:
-	cd node-agent && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-		go build -ldflags="-X main.version=$(VERSION)" -o bin/kubenas-node-agent ./cmd/kubenas-node-agent/main.go
-
-# ── Test Targets ───────────────────────────────────────────────────
+	go vet ./...
 
 .PHONY: test
-test:
-	cd operator && KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" \
-		go test ./... -coverprofile cover.out
+test: manifests generate fmt vet envtest
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use 1.29 -p path)" go test ./... -coverprofile cover.out
 
-.PHONY: test-unit
-test-unit:
-	cd operator && go test ./... -run TestUnit
+##@ Build
 
-.PHONY: test-integration
-test-integration:
-	cd operator && KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" \
-		go test ./... -run TestIntegration -v
+.PHONY: build
+build: manifests generate fmt vet
+	go build -o bin/manager ./cmd/main.go
 
-# ── Code Generation ────────────────────────────────────────────────
-
-.PHONY: generate
-generate:
-	cd operator && $(CONTROLLER_GEN) object paths="./api/..."
-
-.PHONY: manifests
-manifests:
-	cd operator && $(CONTROLLER_GEN) crd paths="./api/..." output:crd:artifacts:config=../deploy/crds
-	cd operator && $(CONTROLLER_GEN) rbac:roleName=kubenas-operator paths="./controllers/..." output:rbac:artifacts:config=../deploy/rbac
-
-# ── Docker Targets ─────────────────────────────────────────────────
+.PHONY: run
+run: manifests generate fmt vet
+	go run ./cmd/main.go
 
 .PHONY: docker-build
-docker-build: docker-build-operator docker-build-agent
-
-.PHONY: docker-build-operator
-docker-build-operator:
-	docker build -t $(IMG_OPERATOR) -f operator/Dockerfile operator/
-
-.PHONY: docker-build-agent
-docker-build-agent:
-	docker build -t $(IMG_AGENT) -f node-agent/Dockerfile node-agent/
+docker-build:
+	docker build -t ${IMG} .
 
 .PHONY: docker-push
 docker-push:
-	docker push $(IMG_OPERATOR)
-	docker push $(IMG_AGENT)
+	docker push ${IMG}
 
-# ── Deploy Targets ─────────────────────────────────────────────────
+##@ Deployment
 
 .PHONY: install
-install:
-	bash scripts/install.sh
+install: manifests kustomize
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
-.PHONY: deploy-crds
-deploy-crds:
-	kubectl apply -f deploy/crds/
+.PHONY: uninstall
+uninstall: manifests kustomize
+	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=true -f -
 
-
-.PHONY: validate-manifests
-validate-manifests:
-	bash scripts/validate-manifests.sh
+.PHONY: deploy
+deploy: manifests kustomize
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: undeploy
 undeploy:
-	kubectl delete -f deploy/node-agent.yaml --ignore-not-found
-	kubectl delete -f deploy/operator.yaml --ignore-not-found
-	kubectl delete -f deploy/rbac/rbac.yaml --ignore-not-found
-	kubectl delete -f deploy/crds/ --ignore-not-found
-	kubectl delete -f deploy/scc/scc.yaml --ignore-not-found 2>/dev/null || true
+	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=true -f -
 
-# ── Tools ──────────────────────────────────────────────────────────
+##@ Bundle
 
-.PHONY: tools
-tools:
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-	go install sigs.k8s.io/kustomize/kustomize/v5@latest
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+.PHONY: bundle
+bundle: manifests kustomize
+	operator-sdk generate kustomize manifests -q || true
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version 0.0.1
 
-.PHONY: help
-help:
-	@echo "KubeNAS Operator Makefile"
-	@echo ""
-	@echo "Build targets:"
-	@echo "  make build          - Build operator and agent binaries"
-	@echo "  make docker-build   - Build container images"
-	@echo "  make docker-push    - Push images to registry"
-	@echo ""
-	@echo "Test targets:"
-	@echo "  make test           - Run all tests with envtest"
-	@echo "  make test-unit      - Run unit tests only"
-	@echo ""
-	@echo "Code gen targets:"
-	@echo "  make generate       - Regenerate deepcopy functions"
-	@echo "  make manifests      - Regenerate CRD and RBAC manifests"
-	@echo ""
-	@echo "Deploy targets:"
-	@echo "  make install        - Full SNO install via install.sh"
-	@echo "  make deploy-crds    - Apply CRDs only"
-	@echo "  make validate-manifests - Run offline manifest structural checks"
-	@echo "  make undeploy       - Remove all KubeNAS resources"
+.PHONY: bundle-build
+bundle-build:
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+.PHONY: bundle-push
+bundle-push:
+	docker push $(BUNDLE_IMG)
+
+##@ Build Dependencies
+
+.PHONY: kustomize
+kustomize: $(LOCALBIN)
+	@if [ -z "$(KUSTOMIZE)" ]; then GOBIN=$(LOCALBIN) go install sigs.k8s.io/kustomize/kustomize/v5@latest; fi
+	$(eval KUSTOMIZE=$(LOCALBIN)/kustomize)
+
+.PHONY: controller-gen
+controller-gen: $(LOCALBIN)
+	@if [ -z "$(CONTROLLER_GEN)" ]; then GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.5; fi
+	$(eval CONTROLLER_GEN=$(LOCALBIN)/controller-gen)
+
+.PHONY: envtest
+envtest: $(LOCALBIN)
+	@if [ -z "$(ENVTEST)" ]; then GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest; fi
+	$(eval ENVTEST=$(LOCALBIN)/setup-envtest)
